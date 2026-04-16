@@ -1,85 +1,50 @@
 # COMP30024 Artificial Intelligence, Semester 1 2026
 # Project Part B: Game Playing Agent
+# Iden Patrick McElhone (1543498)
+# Meidelline Surya (1492043)
 
-from referee.game import PlayerColor, Coord, Direction, \
-    Action, PlaceAction, MoveAction, EatAction, CascadeAction
+from referee.game import (
+    PlayerColor, Action, PlaceAction, MoveAction, EatAction, CascadeAction,
+    PLACEMENT_TURNS,
+)
+
+from .game import apply_place, apply_move, apply_eat, apply_cascade
+from .search import best_action, best_place
 
 
 class Agent:
     """
-    This class is the "entry point" for your agent, providing an interface to
-    respond to various Cascade game events.
+    Entry point for the agent, called by the referee to play Cascade.
     """
 
     def __init__(self, color: PlayerColor, **referee: dict):
         """
-        This constructor method runs when the referee instantiates the agent.
-        Any setup and/or precomputation should be done here.
+        Initialise the agent with a colour and an empty board.
         """
-        self._color = color
+        self._colour = color
+        self._board = {}
         self._turn_count = 0
-        match color:
-            case PlayerColor.RED:
-                print("Testing: I am playing as RED (first player)")
-            case PlayerColor.BLUE:
-                print("Testing: I am playing as BLUE")
 
     def action(self, **referee: dict) -> Action:
         """
-        This method is called by the referee each time it is the agent's turn
-        to take an action. It must always return an action object.
+        Return the best action for the current turn.
+        Places during placement phase, searches during play phase.
         """
+        if self._turn_count < PLACEMENT_TURNS:
+            return best_place(self._board, self._colour)
 
-        # Below we have hardcoded actions to be played depending on whether
-        # the agent is playing as BLUE or RED. Obviously this won't work beyond
-        # the initial moves of the game, so you should use some game playing
-        # technique(s) to determine the best action to take.
+        return best_action(self._board, self._colour)
 
-        # During placement phase (first 8 turns total, 4 per player)
-        if self._turn_count < 4:
-            match self._color:
-                case PlayerColor.RED:
-                    print("Testing: RED is playing a PLACE action")
-                    return PlaceAction(Coord(0, self._turn_count))
-                case PlayerColor.BLUE:
-                    print("Testing: BLUE is playing a PLACE action")
-                    return PlaceAction(Coord(7, self._turn_count))
-
-        # During play phase
-        match self._color:
-            case PlayerColor.RED:
-                print("Testing: RED is playing a MOVE action")
-                return MoveAction(Coord(0, 0), Direction.Down)
-            case PlayerColor.BLUE:
-                print("Testing: BLUE is playing a MOVE action")
-                return MoveAction(Coord(7, 0), Direction.Up)
-
-    def update(self, color: PlayerColor, action: Action, **referee: dict):
+    def update(self, colour: PlayerColor, action: Action, **referee: dict):
         """
-        This method is called by the referee after a player has taken their
-        turn. You should use it to update the agent's internal game state.
+        Apply the last action to the internal board.
         """
-        if color == self._color:
-            self._turn_count += 1
-
-        # There are four possible action types: PLACE, MOVE, EAT, and CASCADE.
-        # Below we check which type of action was played and print out the
-        # details of the action for demonstration purposes. You should replace
-        # this with your own logic to update your agent's internal game state.
-        match action:
-            case PlaceAction(coord):
-                print(f"Testing: {color} played PLACE action at {coord}")
-            case MoveAction(coord, direction):
-                print(f"Testing: {color} played MOVE action:")
-                print(f"  Coord: {coord}")
-                print(f"  Direction: {direction}")
-            case EatAction(coord, direction):
-                print(f"Testing: {color} played EAT action:")
-                print(f"  Coord: {coord}")
-                print(f"  Direction: {direction}")
-            case CascadeAction(coord, direction):
-                print(f"Testing: {color} played CASCADE action:")
-                print(f"  Coord: {coord}")
-                print(f"  Direction: {direction}")
-            case _:
-                raise ValueError(f"Unknown action type: {action}")
+        self._turn_count += 1
+        if isinstance(action, PlaceAction):
+            self._board = apply_place(self._board, action.coord, colour)
+        elif isinstance(action, MoveAction):
+            self._board = apply_move(self._board, action.coord, action.direction)
+        elif isinstance(action, EatAction):
+            self._board = apply_eat(self._board, action.coord, action.direction)
+        elif isinstance(action, CascadeAction):
+            self._board = apply_cascade(self._board, action.coord, action.direction, colour)
